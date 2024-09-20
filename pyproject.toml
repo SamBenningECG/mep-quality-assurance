@@ -1,0 +1,19 @@
+[tool.poetry]
+name = "mep-order-checker"
+version = "0.1.0"
+description = ""
+authors = ["Sam Benning <sam.b@elitecommercegroup.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.12"
+python-dotenv = "^1.0.1"
+pymongo = "^4.8.0"
+mirakl-lib = {path = "../mirakl-lib", develop = true}
+walmart-seller-lib = {path = "../walmart-seller-lib", develop = true}
+pandas = "^2.2.2"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
