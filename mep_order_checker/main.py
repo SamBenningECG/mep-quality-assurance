@@ -4,6 +4,7 @@ import os
 import smtplib
 from typing import TypedDict
 from dotenv import load_dotenv
+from jinja2 import Template
 import pymongo
 import datetime
 from mirakl_lib import (
@@ -52,7 +53,9 @@ SENDER_EMAIL = os.getenv("SENDER_EMAIL")
 SENDER_PASSWORD = os.getenv("SENDER_PASSWORD")
 SMTP_SERVER = os.getenv("SMTP_SERVER")
 # EMAIL_RECIPIENTS = "dee@suburbanstreettrading.com,sam.b@elitecommercegroup.com"
-EMAIL_RECIPIENTS = "dee@suburbanstreettrading.com,sam.b@elitecommercegroup.com,eric@suburbanstreettrading.com,bob@suburbanstreettrading.com"
+# EMAIL_RECIPIENTS = "dee@suburbanstreettrading.com,sam.b@elitecommercegroup.com,eric@suburbanstreettrading.com,bob@suburbanstreettrading.com"
+EMAIL_RECIPIENTS = "sam.b@elitecommercegroup.com"
+
 
 UNFI_CLIENT_URL = os.getenv("UNFI_CLIENT_URL")
 
@@ -110,6 +113,55 @@ def send_email_with_csv(subject: str, body: str, csv_df: pd.DataFrame) -> None:
     with smtplib.SMTP(SMTP_SERVER, 587) as server:
         server.starttls()
         server.login(SENDER_EMAIL, SENDER_PASSWORD)
+        server.send_message(msg)
+
+
+class TrackingEmailData(TypedDict):
+    subject: str
+    greeting: str
+    message: str
+    sender_name: str
+    order_links: list[dict]
+
+
+def send_test_email_with_html(
+    data: TrackingEmailData, csv_df: pd.DataFrame | None = None
+) -> None:
+
+    if type(SENDER_EMAIL) is not str:
+        raise ValueError("SENDER_EMAIL must be a string")
+    if type(SENDER_PASSWORD) is not str:
+        raise ValueError("SENDER_PASSWORD must be a string")
+    if type(SMTP_SERVER) is not str:
+        raise ValueError("SMTP_SERVER must be a string")
+
+    # Read the Jinja2 email template
+    with open("template.j2", "r") as file:
+        template_str = file.read()
+
+    jinja_template = Template(template_str)
+
+    with smtplib.SMTP(SMTP_SERVER, 587) as server:
+        server.starttls()
+        server.login(SENDER_EMAIL, SENDER_PASSWORD)
+
+        msg = MIMEMultipart()
+        msg["From"] = SENDER_EMAIL
+        msg["To"] = "sam.b@elitecommercegroup.com"
+        msg["Subject"] = data["subject"]
+
+        if csv_df is not None:
+            csv = csv_df.to_csv(index=False)
+            attachment = MIMEText(csv)
+            attachment.add_header(
+                "Content-Disposition", "attachment", filename="orders.csv"
+            )
+            msg.attach(attachment)
+
+        email_content = jinja_template.render(data)
+
+        msg.attach(MIMEText(email_content, "html"))
+
         server.send_message(msg)
 
 
@@ -347,6 +399,40 @@ def get_mirakl_orders_need_placement(repo: MiraklOrderRepository) -> list[dict]:
     raise NotImplementedError
 
 
+def generate_order_link(order: OrderRecord) -> str:
+
+    if order["marketplace"] == "WALMART":
+        return f"https://seller.walmart.com/orders/manage-orders?orderGroups=Unshipped&poNumber={order['order_id']}"
+    elif order["marketplace"] == "KROGER":
+        return f"https://kroger-prod.mirakl.net/mmp/shop/order/{order['order_id']}"
+    elif order["marketplace"] == "OTC":
+        return f"https://orientaltradingus-prod.mirakl.net/mmp/shop/order/{order['order_id']}"
+    elif order["marketplace"] == "SALONCENTRIC":
+        return (
+            f"https://saloncentricus-prod.mirakl.net/mmp/shop/order/{order['order_id']}"
+        )
+    else:
+        return "https://www.google.com"
+
+
+def prepare_tracking_email_data(orders: list[OrderRecord]) -> TrackingEmailData:
+
+    data: TrackingEmailData = {
+        "subject": "Tracking Update Summary",
+        "greeting": "Team,",
+        "message": "The following orders need tracking updates.",
+        "sender_name": "MEP Automation System",
+        "order_links": [],
+    }
+
+    for order in orders:
+
+        order_link = generate_order_link(order)
+        data["order_links"].append({"text": order["order_id"], "link": order_link})
+
+    return data
+
+
 def main():
 
     if (
@@ -416,15 +502,8 @@ def main():
             )
 
         if len(orders_needing_tracking) > 0:
-            send_email(
-                "Tracking Update Summary",
-                "The Following orders are more than 1 day old and need tracking",
-            )
-
-            send_email_with_csv(
-                "Tracking Update Summary",
-                "The Following orders are more than 1 day old and need tracking",
-                tracking_df,
+            send_test_email_with_html(
+                prepare_tracking_email_data(orders_needing_tracking), tracking_df
             )
 
         else:
@@ -456,3 +535,4 @@ def test():
 
 if __name__ == "__main__":
     main()
+    # send_test_email_with_html()

@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+	<style>
+	</style>
+</head>
+
+<body>
+	<div class="container">
+		<header>
+			<h1>{{ subject }}</h1>
+		</header>
+
+		<main>
+			<p>{{ greeting }}</p>
+			<p>{{ message }}</p>
+			<ul>
+				{% for order_link in order_links %}
+				<li><a href="{{ order_link.link }}">{{ order_link.text }}</a></li>
+				{% endfor %}
+			</ul>
+		</main>
+
+		<footer>
+			This email was sent from <i>{{ sender_name }}</i>.
+		</footer>
+	</div>
+</body>
+
+</html>

@@ -12,6 +12,7 @@ pymongo = "^4.8.0"
 mirakl-lib = {path = "../mirakl-lib", develop = true}
 walmart-seller-lib = {path = "../walmart-seller-lib", develop = true}
 pandas = "^2.2.2"
+jinja2 = "^3.1.4"
 
 
 [build-system]
